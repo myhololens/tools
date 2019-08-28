@@ -55,10 +55,6 @@ type analysisEntry struct {
 }
 
 func (pkg *pkg) GetActionGraph(ctx context.Context, a *analysis.Analyzer) (*source.Action, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
 	pkg.mu.Lock()
 	e, ok := pkg.analyses[a]
 	if ok {
@@ -181,7 +177,7 @@ func (pkg *pkg) GetTypesSizes() types.Sizes {
 }
 
 func (pkg *pkg) IsIllTyped() bool {
-	return pkg.types == nil && pkg.typesInfo == nil
+	return pkg.types == nil || pkg.typesInfo == nil || pkg.typesSizes == nil
 }
 
 func (pkg *pkg) SetDiagnostics(diags []source.Diagnostic) {

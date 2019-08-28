@@ -16,9 +16,9 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
@@ -255,7 +255,7 @@ func (imp *importer) typeCheck(cph *checkPackageHandle, m *metadata) (*pkg, erro
 
 	for _, err := range parseErrors {
 		if err == context.Canceled {
-			return nil, err
+			return nil, errors.Errorf("parsing files for %s: %v", m.pkgPath, err)
 		}
 		if err != nil {
 			imp.view.session.cache.appendPkgError(pkg, err)

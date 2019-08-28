@@ -13,10 +13,11 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 // formatCompletion creates a completion item for a given candidate.
@@ -25,16 +26,17 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 
 	// Handle builtin types separately.
 	if obj.Parent() == types.Universe {
-		return c.formatBuiltin(cand)
+		return c.formatBuiltin(cand), nil
 	}
 
 	var (
-		label              = c.deepState.chainString(obj.Name())
+		label              = cand.name
 		detail             = types.TypeString(obj.Type(), c.qf)
 		insert             = label
 		kind               CompletionItemKind
 		plainSnippet       *snippet.Builder
 		placeholderSnippet *snippet.Builder
+		protocolEdits      []protocol.TextEdit
 	)
 
 	// expandFuncCall mutates the completion label, detail, and snippets
@@ -85,16 +87,31 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		detail = fmt.Sprintf("%q", obj.Imported().Path())
 	}
 
+	// If this candidate needs an additional import statement,
+	// add the additional text edits needed.
+	if cand.imp != nil {
+		edit, err := addNamedImport(c.view.Session().Cache().FileSet(), c.file, cand.imp.Name, cand.imp.ImportPath)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		addlEdits, err := ToProtocolEdits(c.mapper, edit)
+		if err != nil {
+			return CompletionItem{}, err
+		}
+		protocolEdits = append(protocolEdits, addlEdits...)
+	}
+
 	detail = strings.TrimPrefix(detail, "untyped ")
 	item := CompletionItem{
-		Label:              label,
-		InsertText:         insert,
-		Detail:             detail,
-		Kind:               kind,
-		Score:              cand.score,
-		Depth:              len(c.deepState.chain),
-		plainSnippet:       plainSnippet,
-		placeholderSnippet: placeholderSnippet,
+		Label:               label,
+		InsertText:          insert,
+		AdditionalTextEdits: protocolEdits,
+		Detail:              detail,
+		Kind:                kind,
+		Score:               cand.score,
+		Depth:               len(c.deepState.chain),
+		plainSnippet:        plainSnippet,
+		placeholderSnippet:  placeholderSnippet,
 	}
 	// TODO(rstambler): Log errors when this feature is enabled.
 	if c.opts.WantDocumentaton {
@@ -137,6 +154,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			goto Return
 		}
 		item.Documentation = hover.Synopsis
+		if c.opts.WantFullDocumentation {
+			item.Documentation = hover.FullDocumentation
+		}
 	}
 Return:
 	return item, nil
@@ -156,7 +176,7 @@ func (c *completer) isParameter(v *types.Var) bool {
 	return false
 }
 
-func (c *completer) formatBuiltin(cand candidate) (CompletionItem, error) {
+func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 	obj := cand.obj
 	item := CompletionItem{
 		Label:      obj.Name(),
@@ -186,7 +206,7 @@ func (c *completer) formatBuiltin(cand candidate) (CompletionItem, error) {
 	case *types.Nil:
 		item.Kind = VariableCompletionItem
 	}
-	return item, nil
+	return item
 }
 
 var replacer = strings.NewReplacer(

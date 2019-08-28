@@ -13,9 +13,9 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
@@ -149,7 +149,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	clear := []span.URI{uri} // by default, clear the closed URI
 	defer func() {
 		for _, uri := range clear {
-			if err := s.publishDiagnostics(ctx, view, uri, []source.Diagnostic{}); err != nil {
+			if err := s.publishDiagnostics(ctx, uri, []source.Diagnostic{}); err != nil {
 				log.Error(ctx, "failed to clear diagnostics", err, telemetry.File)
 			}
 		}

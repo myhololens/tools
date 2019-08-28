@@ -17,9 +17,9 @@ import (
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
@@ -325,6 +325,10 @@ func (s *session) buildOverlay() map[string][]byte {
 		overlays[uri.Filename()] = overlay.data
 	}
 	return overlays
+}
+
+func (s *session) DidChangeOutOfBand(uri span.URI) {
+	s.filesWatchMap.Notify(uri)
 }
 
 func (o *overlay) FileSystem() source.FileSystem {

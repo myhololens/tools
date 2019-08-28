@@ -11,10 +11,10 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/lsp/telemetry/log"
-	"golang.org/x/tools/internal/lsp/telemetry/tag"
-	"golang.org/x/tools/internal/lsp/telemetry/trace"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
@@ -171,6 +171,7 @@ func (v *view) shouldRunGopackages(ctx context.Context, f *goFile) (result bool)
 	// Get file content in case we don't already have it.
 	parsed, err := v.session.cache.ParseGoHandle(f.Handle(ctx), source.ParseHeader).Parse(ctx)
 	if err == context.Canceled {
+		log.Error(ctx, "parsing file header", err, tag.Of("file", f.URI()))
 		return false
 	}
 	if parsed == nil {
